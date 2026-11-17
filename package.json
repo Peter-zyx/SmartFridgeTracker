@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "esbuild web-src/main.js --bundle --minify --outfile=SmartFridge/Web/app.js",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "qrcode-generator": "2.0.4",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  },
+  "type": "module"
+}
