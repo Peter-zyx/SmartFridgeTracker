@@ -1,7 +1,7 @@
 import qrcode from 'qrcode-generator';
 
 const storageKey = 'fridge-settings-v1';
-export const settings = { accountId: null, name: '', clock: '24', markers: true, game: false };
+export const settings = { accountId: null, name: '', clock: '24' };
 
 try {
   const saved = JSON.parse(localStorage.getItem(storageKey));
@@ -10,9 +10,7 @@ try {
     settings.accountId = saved.accountId;
   }
   if (typeof saved?.name === 'string') settings.name = saved.name.trim().slice(0, 48);
-  settings.game = saved?.game === true;
   if (saved?.clock === '12') settings.clock = '12';
-  if (typeof saved?.markers === 'boolean') settings.markers = saved.markers;
 } catch {}
 
 const page = document.querySelector('#menu-page');
@@ -49,8 +47,6 @@ qrDialog.querySelector('button').onclick = () => qrDialog.close();
 function render() {
   page.querySelector('#profile-name').textContent = settings.name || 'My profile';
   page.querySelector(`input[name="clock"][value="${settings.clock}"]`).checked = true;
-  page.querySelector('#game-mode').checked = settings.game;
-  page.querySelector('#expiry-markers').checked = settings.markers;
 }
 
 function save(change) {
@@ -67,7 +63,6 @@ function save(change) {
   Object.assign(settings, next);
   status.textContent = '';
   render();
-  if ('game' in change) window.dispatchEvent(new Event('game-change'));
   if (change.clock) window.dispatchEvent(new Event('clock-change'));
   return true;
 }
@@ -93,8 +88,6 @@ page.querySelector('#profile-form').onsubmit = event => {
 };
 page.addEventListener('change', ({ target }) => {
   if (target.name === 'clock') save({ clock: target.value });
-  if (target.id === 'game-mode') save({ game: target.checked });
-  if (target.id === 'expiry-markers') save({ markers: target.checked });
 });
 window.addEventListener('menu-show', () => {
   renderAccountCode();

@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import {attachFreezerDrawer} from './freezer-drawer.js';
-import {buildGameCabinet} from './game-cabinet.mjs';
 import {buildCabinetSnapshot} from './cabinet-geometry.mjs';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
@@ -99,40 +97,6 @@ export function categoryModel(name){
  g.rotation.y=-.13;return g;
 }
 
-// Game pieces represent one dated inventory entry, including multipacks.
-const foodTemplates=new Map();
-function gameFoodModel(food,category){
- const key=category+' / '+food.name;
- if(foodTemplates.has(key))return foodTemplates.get(key);
- const g=new THREE.Group();
- if(category==='Eggs')eggs(g);
- else if(food.name==='Milk'||food.name==='Double cream')carton(g,0,0,food.name==='Milk'?1:.7);
- else if(category==='Yogurt'||category==='Ice cream'||food.name==='Hummus')tub(g,0,0,food.name.split(' ')[0].toUpperCase());
- else if(category==='Sauces'||food.name==='Olives'){
-  const palette={'Pesto':0x779754,'Mustard':0xc89f48,'Soy sauce':0x513a2e,'Hot sauce':0xc26241,'Ketchup':0xac4637};
-  jar(g,0,0,palette[food.name]??0xcbb984,food.name.split(' ')[0].toUpperCase());
- }else if(category==='Vegetables'){
-  if(food.name==='Carrots'){
-   vegetables(g,'carrots');
-  }else if(food.name==='Spinach'){
-   vegetables(g,'leaves');
-  }else if(food.name==='Broccoli'){
-   cylinder(g,.07,.10,.25,0,.14,0,material(0x83a965));
-   for(let i=0;i<5;i++)ball(g,.13,.11*Math.cos(i*2),.28+(i===4?.08:0),.09*Math.sin(i*2),darkGreen);
-  }else if(food.name==='Cucumber')ball(g,.20,0,.13,0,darkGreen,1.55,.65,.65);
-  else{ball(g,.19,0,.20,0,material(0xc8493e));cylinder(g,.025,.03,.10,0,.41,0,darkGreen);}
- }else if(category==='Fruit'&&food.name!=='Blueberries'){
-  ball(g,.21,0,.22,0,material(food.name==='Apples'?0xb45b45:0xef9b34));ball(g,.07,.04,.44,0,darkGreen,1.3,.28,.55);
- }else if(category==='Dairy'||food.name==='Cheese bites'||food.name==='Dark chocolate'){
-  const chocolate=food.name==='Dark chocolate';box(g,.47,chocolate?.42:.19,.25,0,chocolate?.21:.10,0,chocolate?darkGreen:material(0xf1d68a));
-  label(g,chocolate?'COCOA':food.name.toUpperCase(),.31,.14,0,chocolate?.23:.10,.128);
- }else{
-  const tint=category==='Meat & fish'?0xe5ab92:category==='Frozen veg'?0x92b77a:food.name==='Blueberries'?0x77739f:0xe5b175;
-  container(g,0,0,tint);label(g,food.name.split(' ')[0].toUpperCase(),.44,.15,0,.16,.224);
- }
- g.rotation.y=-.10;foodTemplates.set(key,g);return g;
-}
-
 export function mountInterior(root,rows){
  mounted.get(root)?.dispose();
  let renderer;
@@ -187,15 +151,9 @@ export function mountInterior(root,rows){
 
 // The opening animation uses the very same shelf geometry/materials as the
 // inventory renderer, cloned only to supply a second world transform.
-export function snapshotCabinet(kind='fridge',game=false){
- const fridge=kind==='fridge';
- const rows=mounted.get(document.querySelector(fridge?'#shelves':'#drinks-shelves'))?.scenes??[];
+export function snapshotCabinet(kind='fridge'){
+ const roots=kind==='drinks'?['#drinks-shelves']:['#shelves','#freezer-shelf'];
+ const rows=roots.flatMap(selector=>mounted.get(document.querySelector(selector))?.scenes??[]);
  const width=document.querySelector('#shelves').clientWidth/100;
- const bottom=fridge ? .07 : undefined;
- const stage=game?buildGameCabinet(rows,width,kind,gameFoodModel,bottom):buildCabinetSnapshot(rows,width,kind,bottom);
- if(fridge){
-  const groups=mounted.get(document.querySelector('#freezer-shelf'))?.scenes[0]?.groups??[];
-  attachFreezerDrawer(stage,groups,game);
- }
- return stage;
+ return buildCabinetSnapshot(rows,width,kind);
 }

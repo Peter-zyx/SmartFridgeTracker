@@ -1,8 +1,6 @@
-import {showGameFood} from './inventory.js';
+import './inventory.js';
 import './recipes.js';
-import './inventory-list.js';
 import {settings} from './menu.js';
-import {drawerBed,drawerTravel} from './freezer-drawer.js';
 import {snapshotCabinet} from './interior.js';
 import {CABINET_SLIDE,boundedScroll,clamp,visibleAt} from './cabinet-geometry.mjs';
 import * as THREE from 'three';
@@ -55,7 +53,7 @@ try {
   let stockedInterior=null,activeCabinet='fridge',cabinetTransition=null;
   function syncInterior(){
     if(stockedInterior){fridge.remove(stockedInterior);stockedInterior.userData.dispose();}
-    stockedInterior=snapshotCabinet(activeCabinet,settings.game);fridge.add(stockedInterior);
+    stockedInterior=snapshotCabinet(activeCabinet);fridge.add(stockedInterior);
   }
   syncInterior();
   const interiorLight=new THREE.PointLight(0xedfff3,0,5);interiorLight.position.set(0,1.5,.42);fridge.add(interiorLight);
@@ -136,35 +134,26 @@ try {
     const near=Math.max(2.12/Math.tan(halfFov),1.09/(Math.tan(halfFov)*camera.aspect));
     end.set(0,.06,near);
   }
-  let activePage=null,drawerProgress=0,drawerTarget=0;
-  const drawerBusy=()=>drawerProgress!==drawerTarget;
-  function moveDrawer(open){
-    if(phase!=='inventory'||activePage||activeCabinet!=='fridge'||cabinetTransition)return;
-    cancelShelfGesture();
-    drawerTarget=open?1:0;
-    updateCabinetNavigation();
-  }
+  let activePage=null;
   function updateCabinetNavigation(){
-    const activeTab=activePage==='recipes'?'recipe':activePage??'fridge';
+    const activeTab=activePage==='recipes'?'recipe':activePage??activeCabinet;
     for(const button of document.querySelectorAll('.inventory-nav button')){
       const selected=button.id===activeTab+'-button'||(activeTab==='fridge'&&button.dataset.section==='fridge-section');
       button.classList.toggle('active',selected);
       if(selected)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
     }
-    const pageLabels={menu:'Settings',recipes:'Recipes',list:'Inventory list'};
-    inventory.setAttribute('aria-label',pageLabels[activePage] ?? (drawerTarget?'Freezer drawer':activeCabinet==='drinks'?'Drinks cabinet':'Fridge inventory'));
-    document.querySelector('#open-drinks').hidden = Boolean(activePage) || activeCabinet !== 'fridge' || Boolean(drawerTarget || drawerProgress);
-    host.setAttribute('aria-label',drawerTarget?'Open freezer drawer. Tap a food to see its details.':settings.game?'Game mode. Drag an item onto a shelf or another item. Tap for details.':activeCabinet==='drinks'?'Drinks cabinet. Tap a bottle for details; swipe each shelf to browse.':'Open fridge. Tap food to view it; swipe each shelf to browse. Tap the freezer drawer to open it.');
-    document.querySelector('#close-fridge').setAttribute('aria-label',drawerTarget?'Close freezer drawer':activeCabinet==='drinks'?'Back to fridge':'Back to closed fridge');
+    const pageLabels={menu:'Settings',recipes:'Recipes'};
+    inventory.setAttribute('aria-label',pageLabels[activePage] ?? (activeCabinet==='drinks'?'Drinks cabinet':'Fridge inventory'));
+    host.setAttribute('aria-label',activeCabinet==='drinks'?'Drinks cabinet. Tap a bottle for details; swipe each shelf to browse.':'Open fridge. Tap food to view it; swipe each shelf to browse.');
+    document.querySelector('#close-fridge').setAttribute('aria-label',activeCabinet==='drinks'?'Back to fridge':'Back to closed fridge');
   }
   function selectCabinet(kind){
     if(phase!=='inventory'||cabinetTransition||!['fridge','drinks'].includes(kind))return;
     setPage(null);
-    if(drawerTarget||drawerProgress){moveDrawer(false);return;}
     if(kind===activeCabinet){updateCabinetNavigation();return;}
     cancelShelfGesture();
     const outgoing=stockedInterior,direction=kind==='drinks'?1:-1;
-    activeCabinet=kind;stockedInterior=snapshotCabinet(kind,settings.game);fridge.add(stockedInterior);
+    activeCabinet=kind;stockedInterior=snapshotCabinet(kind);fridge.add(stockedInterior);
     updateCabinetNavigation();
     if(reducedMotion.matches){fridge.remove(outgoing);outgoing.userData.dispose();return;}
     stockedInterior.userData.setSlide(direction*CABINET_SLIDE);
@@ -185,14 +174,9 @@ try {
     }
     updateCabinetNavigation();
   }
-  for(const [event,page] of [['recipe-select','recipes'],['menu-select','menu'],['list-select','list']]){
+  for(const [event,page] of [['recipe-select','recipes'],['menu-select','menu']]){
     window.addEventListener(event,()=>{if(phase==='inventory'&&!cabinetTransition)setPage(page);});
   }
-  window.addEventListener('game-change',()=>{
-    cancelShelfGesture();
-    syncInterior();
-    updateCabinetNavigation();
-  });
   window.addEventListener('cabinet-select',event=>selectCabinet(event.detail));
   function act(){
     if(phase==='home'){
@@ -207,19 +191,15 @@ try {
   function returnToFridge(){
     if(phase!=='inventory'||cabinetTransition)return;
     if(activePage){setPage(null);return;}
-    if(drawerTarget||drawerProgress){moveDrawer(false);return;}
     if(activeCabinet==='drinks'){selectCabinet('fridge');return;}
     cancelShelfGesture();
     inventory.inert=true;host.inert=false;document.body.classList.remove('inventory-ready');
     document.body.classList.remove('interior-open');
     phase='closing';transitionStart=performance.now();host.focus({preventScroll:true});
   }
-  document.querySelector('#open-drinks').onclick=()=>selectCabinet('drinks');
   document.querySelector('#close-fridge').onclick=returnToFridge;
   const ray=new THREE.Raycaster();let pointerStart=null,touchShelf=null;
   function cancelShelfGesture(){
-    if(pointerStart?.drawerDrag)stockedInterior.userData.drawerGame?.cancel();
-    if(pointerStart?.gameDrag)stockedInterior.userData.game?.cancel();
     if(pointerStart?.id!==undefined&&host.hasPointerCapture(pointerStart.id))host.releasePointerCapture(pointerStart.id);
     pointerStart=null;touchShelf=null;
   }
@@ -233,7 +213,6 @@ try {
   function shelfAt(e){
     pointRay(e);const point=new THREE.Vector3();
     ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1),0),point);
-    if(activeCabinet==='fridge'&&(drawerTarget||drawerProgress||point.y<.07))return null;
     const {top,pitch,scale,rowElements}=stockedInterior.userData;
     const index=Math.round((top-point.y)/(pitch*scale));
     return rowElements[Math.max(0,Math.min(rowElements.length-1,index))];
@@ -245,64 +224,23 @@ try {
       let item=hit.object,category=null;
       while(item&&item!==stockedInterior){
         if(!item.visible){category=null;break;}
-        if(item.userData.drawer)return drawerTarget ? category : item;
-        if(item.userData.freezerFood||item.userData.category)category=item;
+        if(item.userData.category)category=item;
         item=item.parent;
       }
-      if(category&&!drawerTarget)return category;
+      if(category)return category;
     }
     return null;
   }
-  const dragPlane=new THREE.Plane(new THREE.Vector3(0,0,1),-.15);
-  function handPoint(e){
-    pointRay(e);
-    return ray.ray.intersectPlane(dragPlane,new THREE.Vector3());
-  }
   host.addEventListener('pointerdown',e=>{
-    if(!e.isPrimary||activePage||pointerStart||cabinetTransition||drawerBusy()||!['home','focused','inventory'].includes(phase))return;
+    if(!e.isPrimary||activePage||pointerStart||cabinetTransition||!['home','focused','inventory'].includes(phase))return;
     const inCabinet=phase==='inventory';
-    const row=inCabinet&&!settings.game?shelfAt(e):null;
+    const row=inCabinet?shelfAt(e):null;
     pointerStart={id:e.pointerId,x:e.clientX,y:e.clientY,row,left:row?boundedScroll(row):0};
-    if(inCabinet&&settings.game&&drawerTarget){
-      pointerStart.freezerFood=hitStock(e)?.userData.freezerFood;
-    }
-    if(inCabinet&&settings.game&&!drawerTarget){
-      const piece=hitStock(e)?.userData.pieceId;
-      const hand=handPoint(e);
-      if(piece&&hand){
-        const origin=stockedInterior.userData.game.position(piece);
-        Object.assign(pointerStart,{piece,offset:origin.clone().sub(hand)});
-      }
-    }
     if(inCabinet)host.setPointerCapture(e.pointerId);
   });
-  function movePiece(gesture,e){
-    const hand=handPoint(e);
-    if(!hand)return;
-    if(!gesture.gameDrag){
-      if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)<6)return;
-      stockedInterior.userData.game.begin(gesture.piece);
-      gesture.gameDrag=true;
-    }
-    hand.add(gesture.offset);
-    stockedInterior.userData.game.drag(hand.x,hand.y);
-  }
-  const basketPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-(drawerBed+.58));
-  function moveFrozenFood(gesture,e){
-    if(!gesture.drawerDrag){
-      if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)<6)return;
-      stockedInterior.userData.drawerGame.begin(gesture.freezerFood);
-      gesture.drawerDrag=true;
-    }
-    pointRay(e);
-    const hit=ray.ray.intersectPlane(basketPlane,new THREE.Vector3());
-    if(hit)stockedInterior.userData.drawerGame.drag(stockedInterior.userData.drawer.worldToLocal(hit));
-  }
   host.addEventListener('pointermove',e=>{
     if(pointerStart?.id!==e.pointerId||phase!=='inventory'||cabinetTransition)return;
-    if(pointerStart.freezerFood)moveFrozenFood(pointerStart,e);
-    else if(pointerStart.piece)movePiece(pointerStart,e);
-    else if(pointerStart.row)moveShelf(pointerStart,e.clientX);
+    if(pointerStart.row)moveShelf(pointerStart,e.clientX);
   });
   function cancelPointer(e){if(pointerStart?.id===e.pointerId)cancelShelfGesture();}
   host.addEventListener('pointercancel',cancelPointer);
@@ -312,17 +250,10 @@ try {
     const gesture=pointerStart;
     if(gesture?.id!==e.pointerId||cabinetTransition)return;
     pointerStart=null;
-    if(gesture.freezerFood)moveFrozenFood(gesture,e);
-    if(gesture.drawerDrag){stockedInterior.userData.drawerGame.release();return;}
-    if(gesture.piece)movePiece(gesture,e);
-    if(gesture.gameDrag){stockedInterior.userData.game.release();return;}
     if(gesture.moved||Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>12)return;
     if(phase==='inventory'){
       const item=hitStock(e);
-      if(item?.userData.drawer)moveDrawer(true);
-      else if(item?.userData.freezerFood)showGameFood(item.userData.freezerFood);
-      else if(item?.userData.food)showGameFood(item.userData.food);
-      else if(item){
+      if(item){
         const {row,index}=item.userData.category;
         stockedInterior.userData.rowElements[row].querySelectorAll('.food-card')[index]?.click();
       }
@@ -330,7 +261,7 @@ try {
   });
 
   host.addEventListener('touchstart',e=>{
-    if(settings.game||phase!=='inventory'||cabinetTransition||e.touches.length!==1)return;
+    if(phase!=='inventory'||cabinetTransition||e.touches.length!==1)return;
     const touch=e.touches[0],row=shelfAt(touch);if(!row)return;touchShelf={row,x:touch.clientX,left:boundedScroll(row)};
   },{passive:true});
   host.addEventListener('touchmove',e=>{
@@ -342,14 +273,13 @@ try {
   host.addEventListener('touchend',()=>{touchShelf=null;});
   host.addEventListener('touchcancel',()=>{touchShelf=null;});
   host.addEventListener('keydown',e=>{
-    if(e.key==='Enter'||e.key===' '){e.preventDefault();if(phase==='inventory'&&activeCabinet==='fridge')moveDrawer(!drawerTarget);else act();}
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();act();}
     if(e.key==='Escape'&&phase==='focused'){focused=false;phase='home';document.body.classList.remove('zoomed');host.setAttribute('aria-label','White double-door fridge. Tap to zoom in.');}
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]'))returnToFridge();});
   new ResizeObserver(resize).observe(host);resize();
   let last=0;
   const ease=t=>t*t*(3-2*t);
-  const aim=new THREE.Vector3();
   function frame(t){requestAnimationFrame(frame);const dt=Math.min((t-last)/1000,.05);last=t;
     if(activePage)return;
 
@@ -375,39 +305,12 @@ try {
       opening=1-ease(Math.max(0,Math.min((elapsed-550)/(reducedMotion.matches?1:1200),1)));
       if(reducedMotion.matches||elapsed>1800){opening=0;phase='focused';}
     }
-    if(drawerProgress)stockedInterior.userData.drawerGame?.tick(dt,reducedMotion.matches);
-    stockedInterior.userData.game?.tick(dt,reducedMotion.matches);
-    cabinetTransition?.outgoing.userData.game?.tick(dt,reducedMotion.matches);
-    stockedInterior.userData.updateAlerts(t,reducedMotion.matches,opening>.06&&settings.markers);
-    cabinetTransition?.outgoing.userData.updateAlerts(t,reducedMotion.matches,opening>.06&&settings.markers);
     centreSeal.visible=opening<.03;
     leftHinge.rotation.y=-opening*Math.PI*.57;rightHinge.rotation.y=opening*Math.PI*.57;
     interiorLight.intensity=opening*.7;
     const push=phase==='inventory'?1:phase==='opening'?(reducedMotion.matches?1:ease(Math.max(0,Math.min((elapsed-850)/1300,1)))):phase==='closing'?1-ease(Math.min(elapsed/700,1)):0;
     camera.position.lerpVectors(start,end,progress);camera.position.z-=push*1.10;
     camera.position.y-=push*.12;
-    aim.set(0,-push*.12,0);
-    const drawer=stockedInterior.userData.drawer;
-    if(drawer){
-      if(drawerBusy()){
-        const step=reducedMotion.matches?1:dt/1.4;
-        drawerProgress+=Math.sign(drawerTarget-drawerProgress)*Math.min(step,Math.abs(drawerTarget-drawerProgress));
-        if(!drawerBusy())updateCabinetNavigation();
-      }
-      const extension=ease(clamp(drawerProgress/.70,0,1));
-      drawer.position.z=drawerTravel*extension;
-      if(drawerProgress>0){
-        // Orbit outside the cabinet; the basket clears the lip before the camera rises above it.
-        const orbit=ease(clamp((drawerProgress-.18)/.82,0,1));
-        const distance=camera.position.distanceTo(aim);
-        const fit=Math.max(1.28,.89/camera.aspect)/Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
-        const radius=THREE.MathUtils.lerp(distance,fit,orbit);
-        const angle=THREE.MathUtils.lerp(Math.atan2(camera.position.y-aim.y,camera.position.z),Math.PI*.454,orbit);
-        aim.y=THREE.MathUtils.lerp(aim.y,drawerBed,orbit);
-        aim.z=(drawer.position.z-.045)*orbit;
-        camera.position.set(0,aim.y+radius*Math.sin(angle),aim.z+radius*Math.cos(angle));
-      }
-    }
-    camera.lookAt(aim);renderer.render(scene,camera);
+    camera.lookAt(0,-push*.12,0);renderer.render(scene,camera);
   }requestAnimationFrame(frame);
 }catch(error){console.error(error);document.querySelector('#render-error').hidden=false;}

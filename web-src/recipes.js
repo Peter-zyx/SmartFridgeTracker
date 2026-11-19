@@ -1,5 +1,3 @@
-import {inventoryFoods} from './inventory.js';
-import {ingredientStock,ingredientStatuses,canMakeRecipe} from './ingredient-match.mjs';
 import {RECIPE_ICONS,loadRecipes,saveRecipes,parseRecipe,removeRecipe} from './recipe-data.mjs';
 const root=document.querySelector('#recipes-page');
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -19,29 +17,18 @@ function focusHeading(pane){requestAnimationFrame(()=>$(pane+' h1')?.focus({prev
 function renderLibrary(){
  $('#recipe-count').textContent=`${recipes.length} ${recipes.length===1?'recipe':'recipes'}`;
  $('#recipe-manage').textContent=manage?'Done':'Manage';$('#recipe-manage').hidden=!recipes.length;$('#recipe-manage').setAttribute('aria-pressed',String(manage));
- const stock=ingredientStock(inventoryFoods());
  $('.recipe-grid').innerHTML=recipes.map(recipe=>{
-  const ready=canMakeRecipe(recipe,stock);
-  return `<article class="recipe-tile"><button class="recipe-card" data-recipe="${esc(recipe.id)}" aria-label="Open ${esc(recipe.name)}${ready?', ingredients available':''}"><span class="recipe-logo" aria-hidden="true">${esc(recipe.icon)}${ready?'<span class="recipe-ready"><svg viewBox="0 0 16 16"><path d="m3.5 8 3 3 6-6"/></svg></span>':''}</span><strong>${esc(recipe.name)}</strong><small>${recipe.minutes} min</small></button>${manage?`<button class="recipe-remove" data-delete="${esc(recipe.id)}" aria-label="Delete ${esc(recipe.name)}">−</button>`:''}</article>`;
+  return `<article class="recipe-tile"><button class="recipe-card" data-recipe="${esc(recipe.id)}" aria-label="Open ${esc(recipe.name)}"><span class="recipe-logo" aria-hidden="true">${esc(recipe.icon)}</span><strong>${esc(recipe.name)}</strong><small>${recipe.minutes} min</small></button>${manage?`<button class="recipe-remove" data-delete="${esc(recipe.id)}" aria-label="Delete ${esc(recipe.name)}">−</button>`:''}</article>`;
  }).join('');
  $('.recipe-empty').hidden=recipes.length>0;
 }
 function persist(next){try{saveRecipes(localStorage,next);recipes=next;return true;}catch{notify('Could not save. Please try again.');return false;}}
 function notify(message,undo=false){clearTimeout(toastTimer);$('.recipe-toast span').textContent=message;$('.recipe-toast button').hidden=!undo;$('.recipe-toast').hidden=false;toastTimer=setTimeout(()=>{$('.recipe-toast').hidden=true;},6500);}
-const stockLabel = {ready:'In stock', missing:'Missing', short:'Not enough', unknown:'Check amount'};
-function ingredientRow(item, status) {
- const ready = status === 'ready';
- return `<li class="ingredient-${ready?'ready':'warning'}">
-  <span class="ingredient-name">${esc(item)}</span>
-  <span class="ingredient-status"><span class="ingredient-symbol" aria-hidden="true">${ready?'✓':'!'}</span><span${ready?' class="sr-only"':''}>${stockLabel[status]}</span></span>
- </li>`;
-}
 function openRecipe(id){
  const recipe=recipes.find(r=>r.id===id);if(!recipe)return;selectedId=id;
- const statuses=ingredientStatuses(recipe,ingredientStock(inventoryFoods()));
  $('.recipe-detail').innerHTML=`<header class="recipe-subnav"><button class="recipe-back recipe-circle" aria-label="Back to recipes">${backIcon}</button><button class="recipe-edit" type="button">Edit</button></header>
  <div class="recipe-hero"><div class="recipe-hero-logo" aria-hidden="true">${esc(recipe.icon)}</div><h1 tabindex="-1">${esc(recipe.name)}</h1><div class="recipe-meta"><span>◷ ${recipe.minutes} min</span><span>${recipe.servings} ${recipe.servings===1?'serving':'servings'}</span></div></div>
- <section class="recipe-ingredients"><h2>Ingredients <small>${recipe.ingredients.length}</small></h2><ul>${recipe.ingredients.map((item,i)=>ingredientRow(item,statuses[i])).join('')}</ul></section>
+ <section class="recipe-ingredients"><h2>Ingredients <small>${recipe.ingredients.length}</small></h2><ul>${recipe.ingredients.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></section>
  <section class="recipe-method"><h2>Method</h2><ol>${recipe.steps.map((step,i)=>`<li><span aria-hidden="true">${i+1}</span><p>${esc(step)}</p></li>`).join('')}</ol></section>
  <button class="recipe-delete-text" data-delete="${esc(recipe.id)}">Delete recipe</button>`;
  $('.recipe-detail').scrollTop=0;setView('detail');focusHeading('.recipe-detail');

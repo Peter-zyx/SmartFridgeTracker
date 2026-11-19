@@ -24,26 +24,3 @@ test('starter recipes have complete detail data; malformed saved data safely fal
  const store=storage();store.setItem(RECIPE_STORAGE_KEY,'{bad');assert.equal(loadRecipes(store).length,starterRecipes.length);
  const list=loadRecipes(store);list[0].steps[0]='changed';assert.notEqual(starterRecipes[0].steps[0],'changed');
 });
-
-import {ingredientStock,canMakeRecipe} from '../web-src/ingredient-match.mjs';
-import {seedFoods} from '../web-src/food-data.mjs';
-test('matches usable inventory across sections without double counting or guessing package sizes',()=>{
- const today=new Date(2026,10,11);
- const foods=['Eggs','Dairy','Frozen veg','Oat milk','Cola','Vegetables','Milk'].flatMap(name=>seedFoods(name,today));
- const stock=ingredientStock(foods,today);
- const ready=(...ingredients)=>canMakeRecipe({ingredients},stock);
- assert.ok(ready('2 eggs','30g grated cheddar','½ litre of milk','0.5 kg frozen peas'));
- assert.ok(ready('1 carrot, diced','1 bag of spinach','660 ml cola'));
- assert.equal(ready('1 carrot','3 carrots'),false);
- assert.equal(ready('661 ml cola'),false);
- assert.equal(ready('2 eggs','salt and pepper'),false);
- assert.equal(ready('2 handfuls spinach'),false);
- assert.equal(ready('1 kg cheddar'),false);
- assert.equal(ready('100 ml milk','2 litres milk'),false);
- assert.equal(ready('30 g cheddar','1 cheddar'),false);
- assert.ok(ready('1 ml milk','1 milk'));
- const oatOnly=ingredientStock(foods.filter(food=>food.name==='Oat milk'),today);
- assert.equal(canMakeRecipe({ingredients:['100 ml milk']},oatOnly),false);
- const aged=ingredientStock([{...foods[0],expiresOn:'2026-11-10'}, {...foods[0],quantity:0}],today);
- assert.equal(canMakeRecipe({ingredients:['1 egg']},aged),false);
-});

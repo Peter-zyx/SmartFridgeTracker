@@ -1,5 +1,5 @@
 import {mountInterior} from './interior.js';
-import {seedFoods,foodStatus,totals} from './food-data.mjs';
+import {seedFoods,totals} from './food-data.mjs';
 const initial=[
  [{name:'Dairy',icon:'🥛',count:4,useSoon:1},{name:'Vegetables',icon:'🥬',count:7},{name:'Leftovers',icon:'🍱',count:2,useSoon:2},{name:'Yogurt',icon:'🥣',count:3}],
  [{name:'Meat & fish',icon:'🐟',count:3},{name:'Sauces',icon:'🫙',count:6},{name:'Deli',icon:'🧀',count:2}],
@@ -13,12 +13,11 @@ function ensureFoods(category){
  Object.assign(category,totals(category.foods));
 }
 for(const row of shelves)for(const category of row)ensureFoods(category);
-const soonCount=item=>totals(item.foods??[]).useSoon;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modal=$('#item-dialog');
 function save(){try{localStorage.setItem('fridge-shelves-v1',JSON.stringify(shelves));}catch{}}
-function rowHTML(row,i,editable=true,source=editable?i:'frozen'){return `<section class="shelf"><div class="shelf-row" tabindex="0" aria-label="${String(source).startsWith('drinks-')?'Drinks shelf '+(i+1):editable?'Shelf '+(i+1):'Freezer'} inventory, scroll horizontally">${row.map((item,j)=>`<button class="food-card${soonCount(item)>0?' expiring':''}" data-shelf="${source}" data-item="${j}">${soonCount(item)>0?`<span class="expiry-badge">${soonCount(item)} use soon</span>`:''}<span class="food-art">${item.icon}</span><span class="food-name">${esc(item.name)}</span><span class="food-count">${item.count} ${item.count===1?'item':'items'}</span></button>`).join('')}${editable?`<button class="add-card" data-add="${i}" aria-label="Add category to shelf ${i+1}"><span>+</span><small>Add</small></button>`:''}</div><div class="shelf-ledge"></div></section>`;}
+function rowHTML(row,i,editable=true,source=editable?i:'frozen'){return `<section class="shelf"><div class="shelf-row" tabindex="0" aria-label="${String(source).startsWith('drinks-')?'Drinks shelf '+(i+1):editable?'Shelf '+(i+1):'Freezer'} inventory, scroll horizontally">${row.map((item,j)=>`<button class="food-card" data-shelf="${source}" data-item="${j}"><span class="food-art">${item.icon}</span><span class="food-name">${esc(item.name)}</span><span class="food-count">${item.count} ${item.count===1?'item':'items'}</span></button>`).join('')}${editable?`<button class="add-card" data-add="${i}" aria-label="Add category to shelf ${i+1}"><span>+</span><small>Add</small></button>`:''}</div><div class="shelf-ledge"></div></section>`;}
 const frozen=[{name:'Frozen veg',icon:'🥦'},{name:'Ice cream',icon:'🍨'},{name:'Frozen meals',icon:'🥟'}];
 try{const saved=JSON.parse(localStorage.getItem('fridge-frozen-v1'));if(Array.isArray(saved))for(const category of frozen){const match=saved.find(x=>x.name===category.name);if(Array.isArray(match?.foods))category.foods=match.foods;}}catch{}
 frozen.forEach(ensureFoods);
@@ -30,16 +29,6 @@ const drinks=[
 ];
 try{const saved=JSON.parse(localStorage.getItem('fridge-drinks-v1'));if(Array.isArray(saved))for(const category of drinks.flat()){const match=saved.flat().find(x=>x.name===category.name);if(Array.isArray(match?.foods))category.foods=match.foods;}}catch{}
 drinks.flat().forEach(ensureFoods);
-export function inventorySections(){
- return [
-  {name:'Fridge',categories:shelves.flat()},
-  {name:'Freezer',categories:frozen},
-  {name:'Drinks',categories:drinks.flat()}
- ];
-}
-export function inventoryFoods(){
- return inventorySections().flatMap(section=>section.categories.flatMap(category=>category.foods));
-}
 try{localStorage.setItem('fridge-drinks-v1',JSON.stringify(drinks));}catch{}
 $('#drinks-shelves').innerHTML=drinks.map((row,i)=>rowHTML(row,i,false,'drinks-'+i)).join('');
 mountInterior($('#drinks-shelves'),drinks);
@@ -49,14 +38,7 @@ $('#shelf-less').onclick=()=>{if(shelves.length>1){const last=shelves.pop();shel
 let target=null;
 function showDialog(title,content){modal.classList.remove('food-detail');$('#dialog-title').textContent=title;$('#dialog-body').innerHTML=content;modal.showModal();}
 function foodEntry(food){
- const status=foodStatus(food);
- const date=food.expiresOn?new Date(food.expiresOn+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
- return `<article class="food-entry${status.urgent?' urgent':''}"><span class="entry-icon" aria-hidden="true">${esc(food.icon)}</span><div class="entry-info"><h3>${esc(food.name)}</h3><p>${esc(food.portion)}</p><div class="entry-expiry"><span class="freshness">${status.label}</span>${date?`<time datetime="${esc(food.expiresOn)}">${date}</time>`:''}</div></div></article>`;
-}
-export function showGameFood(food){
- target=null;
- showDialog(food.name,'<div class="food-list">'+foodEntry(food)+'</div>');
- modal.classList.add('food-detail');
+ return `<article class="food-entry"><span class="entry-icon" aria-hidden="true">${esc(food.icon)}</span><div class="entry-info"><h3>${esc(food.name)}</h3><p>${esc(food.portion)}</p></div></article>`;
 }
 $('#inventory').addEventListener('click',e=>{
  const add=e.target.closest('[data-add]');if(add){target={shelf:Number(add.dataset.add),item:null};showDialog('Add category',`<label>Category name<input id="category-name" maxlength="32" required placeholder="e.g. Breakfast" autocomplete="off"></label><button class="save-item" type="submit">Add to shelf</button>`);return;}
@@ -66,7 +48,7 @@ $('#inventory').addEventListener('click',e=>{
  const category=(drinkRow?drinks[Number(card.dataset.shelf.split('-')[1])]:frozenCard?frozen:shelves[Number(card.dataset.shelf)])[Number(card.dataset.item)];
  target=null;ensureFoods(category);
  const foods=[...category.foods].sort((a,b)=>(a.expiresOn||'9999').localeCompare(b.expiresOn||'9999'));
- showDialog(category.name,`<p class="category-summary">${category.count} ${category.count===1?'item':'items'}${category.useSoon?` <span>${category.useSoon} use soon</span>`:''}</p><div class="food-list">${foods.length?foods.map(foodEntry).join(''):'<p class="empty-category">No food in this category yet.</p>'}</div>`);
+ showDialog(category.name,`<p class="category-summary">${category.count} ${category.count===1?'item':'items'}</p><div class="food-list">${foods.length?foods.map(foodEntry).join(''):'<p class="empty-category">No food in this category yet.</p>'}</div>`);
  modal.classList.add('food-detail');
  }
 
@@ -74,7 +56,7 @@ $('#inventory').addEventListener('click',e=>{
 $('#category-form').onsubmit=e=>{e.preventDefault();if(!target)return;const name=$('#category-name').value.trim();if(!name)return;shelves[target.shelf].push({name,count:0,icon:'🧺',foods:[]});render();modal.close();};
 $('#dialog-close').onclick=()=>modal.close();modal.addEventListener('click',e=>{if(e.target===modal)modal.close();});
 for(const button of document.querySelectorAll('[data-section]'))button.onclick=()=>window.dispatchEvent(new CustomEvent('cabinet-select',{detail:'fridge'}));
-$('#list-button').onclick=()=>window.dispatchEvent(new Event('list-select'));
+$('#drinks-button').onclick=()=>window.dispatchEvent(new CustomEvent('cabinet-select',{detail:'drinks'}));
 $('#recipe-button').onclick=()=>window.dispatchEvent(new Event('recipe-select'));
 $('#menu-button').onclick=()=>window.dispatchEvent(new Event('menu-select'));
 render();

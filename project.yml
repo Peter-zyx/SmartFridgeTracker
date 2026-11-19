@@ -14,7 +14,8 @@ targets:
         type: folder
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.peter.smartfridge
+        PRODUCT_BUNDLE_IDENTIFIER: com.peter.smartfridge.legacy
+        INFOPLIST_KEY_CFBundleDisplayName: Fridge Classic
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

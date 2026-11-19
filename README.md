@@ -1,28 +1,30 @@
-# Smart Fridge Tracker
+# Smart Fridge Tracker — Classic UI
 
-An iPhone prototype built with SwiftUI, WKWebView and Three.js. All web resources are bundled locally, so the app runs without a server.
+This branch reconstructs the earlier shelf-based UI for an iteration comparison with `main`. The repository's first commit already contained the newer app, so this is a reconstruction from the shared models and recorded design, rather than a historical checkout.
 
-## Run in Xcode
+## Comparison
 
-Open `SmartFridge.xcodeproj`, select the **SmartFridge** scheme and an iPhone simulator, then Run. Running on a physical iPhone requires configuring your development team and code signing in Xcode.
+| Interaction | Classic — this branch | Latest — main |
+| --- | --- | --- |
+| Fridge interior | Four full-height glass shelves | Upper refrigerated shelves and a lower freezer drawer |
+| Frozen food | On the bottom shelf | Pull-out drawer with overhead camera |
+| Drinks cabinet | Drinks tab | Right-side arrow |
+| Bottom navigation | Fridge, Drinks, Recipe, Menu | Fridge, List, Recipe, Menu |
+| Food movement | Swipe each shelf horizontally | Shelf browsing or Game Mode dragging and stacking |
+| Expiry reminders | Plain food details | Model warning badges and expiry status |
+| Recipes | Ingredients and cooking steps | Inventory matching and availability indicators |
 
-## Features
+The white double-door fridge, door display, opening transition, food models, drinks cabinet, recipe editing and local profile are included. The cabinet clipping fixes are retained for stable browsing.
 
-- Interactive white double-door fridge with animated opening and camera transitions.
-- Refrigerated shelves in the upper half and a pull-out freezer drawer below. Opening the drawer moves the camera into an overhead view.
-- Food details, quantities and expiry reminders, with alerts on the 3D models.
-- Drinks cabinet accessed through the arrow on the fridge's right side.
-- Searchable inventory List covering fridge, freezer and drinks.
-- Three-column recipe library with add, edit and delete actions, ingredient requirements and cooking steps. Available ingredients are matched against inventory.
-- Menu with local profile, account QR code, clock preferences and expiry marker settings.
-- Game mode with draggable, stackable food, settling physics and movement for expired items.
-- Floating translucent navigation and reduced-motion support.
+Preview the [classic shelves](previews/classic-shelves.png) and [drinks cabinet](previews/classic-drinks.png).
 
-Inventory, recipes, profile settings and game arrangements are stored on the device. Initial food records are sample data. Appliance connectivity, remote accounts and cloud synchronization are not implemented.
+## Run alongside the latest app
+
+Open `SmartFridge.xcodeproj`, select the SmartFridge scheme and an iPhone simulator, then Run.
+
+This branch installs as **Fridge Classic**, with bundle identifier `com.peter.smartfridge.legacy`. It has separate local data, so both versions can be installed together for comparison. The latest app uses `com.peter.smartfridge`.
 
 ## Development
-
-Requires Node.js and npm for JavaScript changes.
 
 ```sh
 npm ci
@@ -30,17 +32,6 @@ npm test
 npm run build
 ```
 
-Build in Xcode after changing JavaScript. The generated bundle at `SmartFridge/Web/app.js` is committed so a fresh checkout can run directly in Xcode.
+Build in Xcode after JavaScript changes. The generated `SmartFridge/Web/app.js` bundle is tracked and works offline. XcodeGen users can regenerate the project with `xcodegen generate`. Physical device installation requires configuring code signing.
 
-The XcodeGen specification is in `project.yml`. To regenerate the Xcode project, run `xcodegen generate` with XcodeGen installed.
-
-## Project files
-
-- `SmartFridge/SmartFridgeApp.swift` — native app and WKWebView host.
-- `SmartFridge/Web/` — bundled JavaScript, HTML, CSS and dependency licenses.
-- `web-src/` — Three.js models, interactions, inventory, recipes and settings.
-- `tests/` — geometry, clipping, freezer, game arrangement and recipe regression tests.
-- `previews/` — development screenshots and a game-mode video. Some show earlier designs.
-- `references/` — refrigerator reference images and provenance.
-
-The fridge and food models use original procedural geometry. Three.js and QR code generator license notices are included in the app resources.
+The app uses sample inventory stored locally. Models are original procedural Three.js geometry. Dependency license notices are in `SmartFridge/Web/`; reference image provenance is in `references/README.md`. Development screenshots in `previews/` include earlier iterations.
